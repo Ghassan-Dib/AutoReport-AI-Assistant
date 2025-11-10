@@ -1,0 +1,12 @@
+# local env files
+.env
+.venv/
+
+# Vector store directory 
+vectorstore/
+
+# Documents
+data
+
+# Python cache files
+__pycache__/
