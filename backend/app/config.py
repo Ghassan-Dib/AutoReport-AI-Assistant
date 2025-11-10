@@ -1,0 +1,5 @@
+CHUNK_SIZE = 700
+CHUNK_OVERLAP = 100
+ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929"
+EMBEDDINGS_MODEL_NAME = "BAAI/bge-large-en-v1.5"
+VECTOR_STORE_PATH = "vectorstore/faiss_index"
