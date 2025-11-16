@@ -45,7 +45,7 @@ const Chat: React.FC<ChatProps> = ({ messages, isTyping, onSend }) => {
           typingIndicator={
             isTyping && (
               <TypingIndicator
-                content='typing..'
+                content='searching documents..'
                 style={{ fontSize: '1.5rem', padding: '10px 100px' }}
               />
             )
