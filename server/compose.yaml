@@ -1,0 +1,20 @@
+services:
+  server:
+    build:
+      context: .
+    container_name: consigli-rag-server
+    volumes:
+      - ./vectorstore:/app/vectorstore
+      - huggingface-cache:/home/appuser/.cache/huggingface
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LANG_SMITH_API_KEY=${LANG_SMITH_API_KEY}
+    ports:
+      - 8000:8000
+    develop:
+      watch:
+        - action: rebuild
+          path: .
+
+volumes:
+  huggingface-cache:
