@@ -1,9 +1,8 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
+from pydantic import BaseModel
 
-from app.rag_pipeline import get_rag_chain, clear_session_history
+from app.rag_pipeline import clear_session_history, get_rag_chain
 
 app = FastAPI(title="Consigli Conversational RAG API")
 
@@ -18,7 +17,7 @@ app.add_middleware(
 
 class Query(BaseModel):
     question: str
-    session_id: Optional[str] = "default"
+    session_id: str | None = "default"
 
 
 class ClearHistoryRequest(BaseModel):

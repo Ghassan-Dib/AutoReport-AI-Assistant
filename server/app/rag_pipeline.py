@@ -1,16 +1,15 @@
 from dotenv import load_dotenv
-
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_anthropic import ChatAnthropic
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_anthropic import ChatAnthropic
 from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_community.vectorstores import FAISS
 from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_huggingface import HuggingFaceEmbeddings
 
-from app.config import EMBEDDINGS_MODEL_NAME, ANTHROPIC_MODEL, VECTOR_STORE_PATH
+from app.config import ANTHROPIC_MODEL, EMBEDDINGS_MODEL_NAME, VECTOR_STORE_PATH
 
 load_dotenv()
 

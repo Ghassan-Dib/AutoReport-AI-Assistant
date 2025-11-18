@@ -1,23 +1,24 @@
-import os
-import fitz
 import logging
-from langchain_core.documents import Document
+import os
+
+import fitz
 from docx import Document as DocxReader
 from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import (
-    EMBEDDINGS_MODEL_NAME,
-    CHUNK_SIZE,
     CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    EMBEDDINGS_MODEL_NAME,
     VECTOR_STORE_PATH,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
 
-def extract_text_from_pdf(path):
+def extract_text_from_pdf(path: str) -> str:
     text = ""
     try:
         with fitz.open(path) as doc:
@@ -30,7 +31,7 @@ def extract_text_from_pdf(path):
         return ""
 
 
-def extract_text_from_docx(path):
+def extract_text_from_docx(path: str) -> str:
     try:
         doc = DocxReader(path)
         text = "\n".join([p.text for p in doc.paragraphs])
@@ -40,7 +41,7 @@ def extract_text_from_docx(path):
         return ""
 
 
-def load_documents_from_directory(root_dir):
+def load_documents_from_directory(root_dir: str) -> list[Document]:
     documents = []
     supported_formats = (".pdf", ".docx")
 
@@ -72,7 +73,9 @@ def load_documents_from_directory(root_dir):
     return documents
 
 
-def build_vectorstore(data_root="data/", db_path=VECTOR_STORE_PATH):
+def build_vectorstore(
+    data_root: str = "data/", db_path: str = VECTOR_STORE_PATH
+) -> FAISS:
     # Validate data directory exists
     if not os.path.exists(data_root):
         raise FileNotFoundError(f"Data directory not found: {data_root}")
@@ -92,7 +95,7 @@ def build_vectorstore(data_root="data/", db_path=VECTOR_STORE_PATH):
 
     # Split into chunks
     logging.info(
-        f"\n✂️  Splitting documents (chunk_size={CHUNK_SIZE}, overlap={CHUNK_OVERLAP})..."
+        f"\nSplitting documents (chunk_size={CHUNK_SIZE}, overlap={CHUNK_OVERLAP})..."
     )
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
@@ -104,7 +107,7 @@ def build_vectorstore(data_root="data/", db_path=VECTOR_STORE_PATH):
     logging.info(f"✅ Split into {len(chunks)} chunks.")
 
     # Create embeddings
-    logging.info(f"\n🤖 Creating embeddings using: {EMBEDDINGS_MODEL_NAME}")
+    logging.info(f"\nCreating embeddings using: {EMBEDDINGS_MODEL_NAME}")
     embeddings = HuggingFaceEmbeddings(
         model_name=EMBEDDINGS_MODEL_NAME,
         model_kwargs={"device": "cpu"},  # Change to 'cuda' if you have GPU
@@ -112,7 +115,7 @@ def build_vectorstore(data_root="data/", db_path=VECTOR_STORE_PATH):
     )
 
     # Build vectorstore
-    logging.info("\n🔧 Building FAISS vectorstore...")
+    logging.info("\nBuilding FAISS vectorstore...")
     vectorstore = FAISS.from_documents(chunks, embeddings)
 
     # Save vectorstore
