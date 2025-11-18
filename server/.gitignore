@@ -1,6 +1,6 @@
 # local env files
 .env
-.venv/
+venv/
 
 # Vector store directory 
 vectorstore/

@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 
-from app.rag_pipeline import get_rag_chain
+from app.rag_pipeline import get_rag_chain, clear_session_history
 
 app = FastAPI(title="Consigli Conversational RAG API")
 
@@ -14,18 +15,54 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-chain = get_rag_chain()
-
 
 class Query(BaseModel):
     question: str
+    session_id: Optional[str] = "default"
+
+
+class ClearHistoryRequest(BaseModel):
+    session_id: str
+
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Consigli Conversational RAG API!"}
 
 
 @app.post("/ask")
 def ask(query: Query):
-    result = chain({"question": query.question})
+    """
+    Ask a question with conversational context.
+    Each session_id maintains its own conversation history.
+    """
+    try:
+        chain = get_rag_chain()
 
-    return {
-        "content": result["answer"],
-        # "sources": [doc.metadata.get("source") for doc in result["source_documents"]],
-    }
+        # Invoke with session configuration
+        result = chain.invoke(
+            {"input": query.question},
+            config={"configurable": {"session_id": query.session_id}},
+        )
+
+        return {
+            "content": result["answer"],
+            "session_id": query.session_id,
+            # "sources": [doc.metadata.get("source") for doc in result.get("context", [])]
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
+
+
+@app.post("/clear-history")
+def clear_history(request: ClearHistoryRequest):
+    """Clear conversation history for a specific session."""
+    try:
+        clear_session_history(request.session_id)
+        return {
+            "message": f"History cleared for session: {request.session_id}",
+            "session_id": request.session_id,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error clearing history: {str(e)}")
