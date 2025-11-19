@@ -14,6 +14,7 @@ from app.config import (
     EMBEDDINGS_MODEL_NAME,
     VECTOR_STORE_PATH,
 )
+from app.utils.text_processing import preprocess_text
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
@@ -66,7 +67,7 @@ def load_documents_from_directory(root_dir: str) -> list[Document]:
                 documents.append(
                     Document(page_content=text, metadata={"source": file_path})
                 )
-                logging.info(f"✅ Added: {file} ({len(text)} chars)")
+                logging.info(f"✔ Added: {file} ({len(text)} chars)")
             else:
                 logging.warning(f"⚠️  Skipped (empty): {file}")
 
@@ -91,9 +92,9 @@ def build_vectorstore(
     if not docs:
         raise ValueError(f"No documents found in {data_root}")
 
-    logging.info(f"\n✅ Loaded {len(docs)} documents.")
+    logging.info(f"\n✔ Loaded {len(docs)} documents.")
 
-    # Split into chunks
+    # 1. Split into chunks
     logging.info(
         f"\nSplitting documents (chunk_size={CHUNK_SIZE}, overlap={CHUNK_OVERLAP})..."
     )
@@ -104,18 +105,28 @@ def build_vectorstore(
         is_separator_regex=False,
     )
     chunks = splitter.split_documents(docs)
-    logging.info(f"✅ Split into {len(chunks)} chunks.")
+    logging.info(f"✔ Split into {len(chunks)} chunks.")
 
-    # Create embeddings
+    # 2. Preprocess chunks
+    logging.info("\nPreprocessing text chunks...")
+    chunks = [
+        Document(
+            page_content=preprocess_text(chunk.page_content),
+            metadata=chunk.metadata,
+        )
+        for chunk in chunks
+    ]
+
+    # 2. Create embeddings
     logging.info(f"\nCreating embeddings using: {EMBEDDINGS_MODEL_NAME}")
     embeddings = HuggingFaceEmbeddings(
         model_name=EMBEDDINGS_MODEL_NAME,
-        model_kwargs={"device": "cpu"},  # Change to 'cuda' if you have GPU
+        model_kwargs={"device": "cpu"},
         encode_kwargs={"normalize_embeddings": True},
     )
 
     # Build vectorstore
-    logging.info("\nBuilding FAISS vectorstore...")
+    logging.info("\n\nBuilding FAISS vectorstore...")
     vectorstore = FAISS.from_documents(chunks, embeddings)
 
     # Save vectorstore
@@ -123,7 +134,7 @@ def build_vectorstore(
     vectorstore.save_local(db_path)
 
     logging.info("\n" + "=" * 60)
-    logging.info(f"✅ COMPLETE! Vectorstore saved to: {db_path}")
+    logging.info(f"✔ COMPLETE! Vectorstore saved to: {db_path}")
     logging.info("=" * 60)
 
     return vectorstore
