@@ -5,11 +5,22 @@ from langchain_anthropic import ChatAnthropic
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_community.vectorstores import FAISS
 from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableLambda
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from app.config import ANTHROPIC_MODEL, EMBEDDINGS_MODEL_NAME, VECTOR_STORE_PATH
+from app.prompts import (
+    CONTEXTUALIZE_Q_SYSTEM_PROMPT,
+    QA_SYSTEM_PROMPT,
+    SYNTHESIZE_ANSWER_SYSTEM_PROMPT,
+)
+from app.utils.retrieval import (
+    create_multi_query_retriever,
+    create_query_decomposition_retriever,
+)
 
 load_dotenv()
 
@@ -23,7 +34,7 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
     return store[session_id]
 
 
-def get_rag_chain():
+def get_rag_chain(retriever_type: str | None = None) -> RunnableWithMessageHistory:
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDINGS_MODEL_NAME)
 
     # Load the vector store
@@ -33,24 +44,59 @@ def get_rag_chain():
         allow_dangerous_deserialization=True,
     )
 
-    # Create a retriever
-    retriever = vectorstore.as_retriever(
+    # Initialize the LLM
+    llm = ChatAnthropic(model=ANTHROPIC_MODEL, temperature=0, max_tokens=4096)
+
+    # Create the base retriever
+    base_retriever = vectorstore.as_retriever(
         search_type="similarity",
         search_kwargs={"k": 5},
     )
 
-    # Initialize the LLM
-    llm = ChatAnthropic(model=ANTHROPIC_MODEL, temperature=0, max_tokens=4096)
+    # Choose retriever type
+    if retriever_type == "multi_query":
+        retriever = create_multi_query_retriever(llm, base_retriever)
+    elif retriever_type == "query_decomposition":
+        # Decomposition handles retrieval and initial QA internally
+        decomposition_retriever = create_query_decomposition_retriever(
+            llm, base_retriever
+        )
 
-    # Contextualize question prompt - helps reformulate follow-up questions
-    contextualize_q_system_prompt = """Given a chat history and the latest user question \
-    which might reference context in the chat history, formulate a standalone question \
-    which can be understood without the chat history. Do NOT answer the question, \
-    just reformulate it if needed and otherwise return it as is."""
+        # Synthesis chain
+        synthesis_prompt = ChatPromptTemplate.from_template(
+            SYNTHESIZE_ANSWER_SYSTEM_PROMPT
+        )
 
+        synthesis_chain = synthesis_prompt | llm | StrOutputParser()
+
+        def format_decomposition_output(answer: str) -> dict:
+            """Wrap string answer in dict format for consistency"""
+            return {"answer": answer}
+
+        # Combine decomposition and synthesis
+        decomposition_rag_chain = (
+            decomposition_retriever
+            | synthesis_chain
+            | RunnableLambda(format_decomposition_output)
+        )
+
+        # Wrap with message history
+        conversational_rag_chain = RunnableWithMessageHistory(
+            decomposition_rag_chain,
+            get_session_history,
+            input_messages_key="input",
+            output_messages_key="answer",
+        )
+
+        return conversational_rag_chain
+    else:
+        # Use standard retrieval
+        retriever = base_retriever
+
+    # Contextualize question prompt
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", contextualize_q_system_prompt),
+            ("system", CONTEXTUALIZE_Q_SYSTEM_PROMPT),
             MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
         ]
@@ -61,18 +107,10 @@ def get_rag_chain():
         llm, retriever, contextualize_q_prompt
     )
 
-    # QA system prompt - your financial analyst instructions
-    qa_system_prompt = """You are an AI financial analyst. You must answer only using the context provided below.
-    If the answer is not explicitly stated, reply: "The data is not explicitly stated in the reports."
-
-    Context:
-    {context}
-
-    Give a direct, factual answer based on the numbers and statements in the context."""
-
+    # QA system prompt
     qa_prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", qa_system_prompt),
+            ("system", QA_SYSTEM_PROMPT),
             MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
         ]

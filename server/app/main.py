@@ -17,6 +17,7 @@ app.add_middleware(
 
 class Query(BaseModel):
     question: str
+    retriever_type: str | None = "standard"
     session_id: str | None = "default"
 
 
@@ -36,7 +37,11 @@ def ask(query: Query):
     Each session_id maintains its own conversation history.
     """
     try:
-        chain = get_rag_chain()
+        chain = get_rag_chain(
+            retriever_type=query.retriever_type
+            if hasattr(query, "retriever_type")
+            else "standard"
+        )
 
         # Invoke with session configuration
         result = chain.invoke(
@@ -45,7 +50,7 @@ def ask(query: Query):
         )
 
         return {
-            "content": result["answer"],
+            "content": result["answer"] if "answer" in result else result,
             "session_id": query.session_id,
             # "sources": [doc.metadata.get("source") for doc in result.get("context", [])]
         }
