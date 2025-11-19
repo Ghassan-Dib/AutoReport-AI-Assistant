@@ -30,8 +30,8 @@ AutoReport AI Assistant helps automotive analysts extract and analyze key financ
 
 - Backend
     ```bash
-    cd backend
-    python main.py
+    cd server
+    uvicorn app.main:app --reload
 
 - Frontend
     ```bash

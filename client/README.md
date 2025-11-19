@@ -2,14 +2,12 @@ This App uses [ChatScope](https://chatscope.io/demo/) components to build the UI
 
 ## Getting Started
 
-First, install all packages and dependencies
-
+1. install all packages and dependencies
 ```bash
 yarn install
 ```
 
-Second, run the development server:
-
+2. run the development server:
 ```bash
 yarn dev
 ```
