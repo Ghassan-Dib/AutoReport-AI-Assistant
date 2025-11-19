@@ -60,7 +60,7 @@ def build_vectorstore(
     logging.info("=" * 60)
 
     # Load documents
-    logging.info("\n📂 Loading documents from folders...")
+    logging.info("\nLoading documents from folders...")
     docs = load_documents_from_directory(data_root)
 
     if not docs:
