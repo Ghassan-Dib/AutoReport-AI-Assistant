@@ -1,8 +1,7 @@
 import logging
 import os
 
-import fitz
-from docx import Document as DocxReader
+from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -17,29 +16,6 @@ from app.config import (
 from app.utils.text_processing import preprocess_text
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
-
-
-def extract_text_from_pdf(path: str) -> str:
-    text = ""
-    try:
-        with fitz.open(path) as doc:
-            for page in doc:
-                text += page.get_text("text")
-        text = text.replace("\n", " ").replace("  ", " ").strip()
-        return text
-    except Exception as e:
-        logging.error(f"Error extracting text from {path}: {e}")
-        return ""
-
-
-def extract_text_from_docx(path: str) -> str:
-    try:
-        doc = DocxReader(path)
-        text = "\n".join([p.text for p in doc.paragraphs])
-        return text
-    except Exception as e:
-        logging.error(f"Error extracting text from {path}: {e}")
-        return ""
 
 
 def load_documents_from_directory(root_dir: str) -> list[Document]:
@@ -57,19 +33,17 @@ def load_documents_from_directory(root_dir: str) -> list[Document]:
             logging.info(f"Processing: {file_path}")
 
             if file.endswith(".pdf"):
-                text = extract_text_from_pdf(file_path)
+                loader = PyPDFLoader(file_path)
+                docs = loader.load()
+                logging.info(f"✔ Added: {file} ({len(docs)})")
             elif file.endswith(".docx"):
-                text = extract_text_from_docx(file_path)
+                loader = Docx2txtLoader(file_path)
+                docs = loader.load()
+                logging.info(f"✔ Added: {file} ({len(docs)})")
             else:
                 continue
 
-            if text.strip():
-                documents.append(
-                    Document(page_content=text, metadata={"source": file_path})
-                )
-                logging.info(f"✔ Added: {file} ({len(text)} chars)")
-            else:
-                logging.warning(f"⚠️  Skipped (empty): {file}")
+            documents.extend(docs)
 
     return documents
 
@@ -101,11 +75,10 @@ def build_vectorstore(
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
-        length_function=len,
-        is_separator_regex=False,
+        add_start_index=True,
     )
     chunks = splitter.split_documents(docs)
-    logging.info(f"✔ Split into {len(chunks)} chunks.")
+    logging.info(f"\n✔ Split into {len(chunks)} chunks.")
 
     # 2. Preprocess chunks
     logging.info("\nPreprocessing text chunks...")
