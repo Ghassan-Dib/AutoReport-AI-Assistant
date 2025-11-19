@@ -16,10 +16,14 @@ const App = () => {
     senderId: '',
     status: MessageStatus.Sent,
     direction: MessageDirection.Incoming,
-    contentType: MessageContentType.TextHtml,
+    contentType: MessageContentType.TextMarkdown,
     content:
       'Hello, I’m your <Strong>Automotive Annual Report</Strong> Analyst Assistant. How can I help you?' as unknown as MessageContent<TextContent>,
   });
+
+  const [selectedType, setSelectedType] = useState<
+    'standard' | 'multi_query' | 'query_decomposition'
+  >('standard');
 
   const [messages, setMessages] = useState<ChatMessage<MessageContentType>[]>([
     greetingMessage,
@@ -34,7 +38,7 @@ const App = () => {
       content: message as unknown as MessageContent<TextContent>,
       status: MessageStatus.Sent,
       direction: MessageDirection.Outgoing,
-      contentType: MessageContentType.TextHtml,
+      contentType: MessageContentType.TextMarkdown,
     });
 
     const newMessages = [...messages, newMessage];
@@ -48,11 +52,14 @@ const App = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: message }),
+        body: JSON.stringify({
+          question: message,
+          retriever_type: selectedType,
+        }),
       });
       const data = await response.json();
       data.direction = MessageDirection.Incoming;
-      data.contentType = MessageContentType.TextHtml;
+      data.contentType = MessageContentType.TextMarkdown;
 
       // add sources to the message content if available
       if (data.sources && Array.isArray(data.sources)) {
@@ -72,7 +79,14 @@ const App = () => {
     }
   };
 
-  return <Chat messages={messages} isTyping={isTyping} onSend={handleSend} />;
+  return (
+    <Chat
+      messages={messages}
+      isTyping={isTyping}
+      onSelectType={setSelectedType}
+      onSend={handleSend}
+    />
+  );
 };
 
 export default App;
