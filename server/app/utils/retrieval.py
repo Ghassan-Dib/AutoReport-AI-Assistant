@@ -10,6 +10,8 @@ from app.prompts import (
     SUB_QUESTION_QA_TEMPLATE,
 )
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+
 
 def get_unique_docs(documents: list[list]):
     """Unique union of retrieved docs"""
@@ -30,6 +32,7 @@ def create_multi_query_retriever(llm, base_retriever):
     """Create a multi-query retriever that generates query variations"""
     prompt_perspectives = ChatPromptTemplate.from_template(MULTI_QUERY_TEMPLATE)
 
+    # Generate queries
     generate_queries = (
         prompt_perspectives
         | llm
@@ -69,22 +72,22 @@ def create_query_decomposition_retriever(llm, base_retriever):
         # Generate sub-questions
         sub_questions = generate_sub_questions.invoke({"question": question})
 
-        logging.info(f"\n=== DECOMPOSED INTO {len(sub_questions)} SUB-QUESTIONS ===")
+        logging.info("\n=== DECOMPOSED SUB-QUESTIONS ===")
         for i, sq in enumerate(sub_questions, 1):
             logging.info(f"{i}. {sq}")
         logging.info("=" * 60)
 
         # Answer each sub-question
-        rag_results = []
+        sub_answers = []
         for sub_question in sub_questions:
             retrieved_docs = base_retriever.invoke(sub_question)
             answer = sub_qa_chain.invoke(
                 {"context": retrieved_docs, "question": sub_question}
             )
-            rag_results.append(answer)
+            sub_answers.append(answer)
 
         logging.info("\n=== SUB-QUESTION ANSWERS ===")
-        for i, (sq, ans) in enumerate(zip(sub_questions, rag_results, strict=False), 1):
+        for i, (sq, ans) in enumerate(zip(sub_questions, sub_answers, strict=False), 1):
             logging.info(f"\nQ{i}: {sq}")
             logging.info(f"A{i}: {ans[:200]}..." if len(ans) > 200 else f"A{i}: {ans}")
         logging.info("=" * 60 + "\n")
@@ -92,7 +95,7 @@ def create_query_decomposition_retriever(llm, base_retriever):
         # Format Q&A pairs
         formatted_context = ""
         for i, (sq, ans) in enumerate(
-            zip(sub_questions, rag_results, strict=False), start=1
+            zip(sub_questions, sub_answers, strict=False), start=1
         ):
             formatted_context += f"Question {i}: {sq}\nAnswer {i}: {ans}\n\n"
 
@@ -100,7 +103,7 @@ def create_query_decomposition_retriever(llm, base_retriever):
             "context": formatted_context.strip(),
             "question": question,
             "sub_questions": sub_questions,
-            "sub_answers": rag_results,
+            "sub_answers": sub_answers,
         }
 
     return RunnableLambda(process_decomposition)

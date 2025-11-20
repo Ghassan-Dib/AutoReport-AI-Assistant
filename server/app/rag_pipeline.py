@@ -80,7 +80,7 @@ def get_rag_chain(retriever_type: str | None = None) -> RunnableWithMessageHisto
             | RunnableLambda(format_decomposition_output)
         )
 
-        # Wrap with message history
+        # Add Conversational Memory
         conversational_rag_chain = RunnableWithMessageHistory(
             decomposition_rag_chain,
             get_session_history,
@@ -93,7 +93,7 @@ def get_rag_chain(retriever_type: str | None = None) -> RunnableWithMessageHisto
         # Use standard retrieval
         retriever = base_retriever
 
-    # Contextualize question prompt
+    # Contextualize question prompt (rewrite question with chat history)
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", CONTEXTUALIZE_Q_SYSTEM_PROMPT),
@@ -122,7 +122,7 @@ def get_rag_chain(retriever_type: str | None = None) -> RunnableWithMessageHisto
     # Create the full RAG chain
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-    # Wrap with message history
+    # Add Conversational Memory
     conversational_rag_chain = RunnableWithMessageHistory(
         rag_chain,
         get_session_history,

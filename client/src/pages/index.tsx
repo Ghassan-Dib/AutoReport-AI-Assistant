@@ -16,7 +16,7 @@ const App = () => {
     senderId: '',
     status: MessageStatus.Sent,
     direction: MessageDirection.Incoming,
-    contentType: MessageContentType.TextMarkdown,
+    contentType: MessageContentType.TextHtml,
     content:
       'Hello, I’m your <Strong>Automotive Annual Report</Strong> Analyst Assistant. How can I help you?' as unknown as MessageContent<TextContent>,
   });
@@ -38,7 +38,7 @@ const App = () => {
       content: message as unknown as MessageContent<TextContent>,
       status: MessageStatus.Sent,
       direction: MessageDirection.Outgoing,
-      contentType: MessageContentType.TextMarkdown,
+      contentType: MessageContentType.TextHtml,
     });
 
     const newMessages = [...messages, newMessage];
@@ -59,7 +59,7 @@ const App = () => {
       });
       const data = await response.json();
       data.direction = MessageDirection.Incoming;
-      data.contentType = MessageContentType.TextMarkdown;
+      data.contentType = MessageContentType.TextHtml;
 
       // add sources to the message content if available
       if (data.sources && Array.isArray(data.sources)) {
